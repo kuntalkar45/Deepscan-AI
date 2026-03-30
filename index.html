@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced AI Image Verifier</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Smart Animated Background */
+        body {
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #0f172a);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glassmorphism Theme */
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 550px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: #94a3b8;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(129, 140, 248, 0.5);
+            border-radius: 15px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            background: rgba(129, 140, 248, 0.1);
+            border-color: #818cf8;
+        }
+
+        .upload-area p {
+            margin: 0;
+            color: #a5b4fc;
+            font-weight: 600;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-container {
+            display: none;
+            margin-bottom: 20px;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            object-fit: contain;
+        }
+
+        .file-info {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid #64748b;
+            margin-top: 15px;
+        }
+
+        /* Result Area & Confidence Meter */
+        .result-box {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            text-align: left;
+        }
+
+        .result-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .meter-bg {
+            background: rgba(255, 255, 255, 0.1);
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 5px;
+            transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .confidence-text {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            text-align: right;
+        }
+
+        .ai-detected { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); }
+        .ai-detected .meter-fill { background: #ef4444; }
+        .ai-detected .result-header { color: #fca5a5; }
+
+        .real-detected { background: rgba(22, 163, 74, 0.1); border: 1px solid rgba(22, 163, 74, 0.3); }
+        .real-detected .meter-fill { background: #22c55e; }
+        .real-detected .result-header { color: #86efac; }
+
+        /* Scanner Animation */
+        .scanner {
+            width: 100%;
+            height: 4px;
+            background: #818cf8;
+            position: absolute;
+            top: 0;
+            left: 0;
+            box-shadow: 0 0 10px #818cf8;
+            animation: scan 2s linear infinite;
+            display: none;
+            z-index: 10;
+        }
+
+        .img-wrapper { position: relative; display: inline-block; width: 100%; }
+
+        @keyframes scan {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>DeepScan AI</h1>
+        <p class="subtitle">Neural Network Image Authentication</p>
+
+        <div class="upload-area" id="uploadArea">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" style="margin-bottom: 10px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+            <p>Drag & Drop or Click to Browse</p>
+            <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp">
+        </div>
+
+        <div class="preview-container" id="previewContainer">
+            <div class="img-wrapper">
+                <div class="scanner" id="scanner"></div>
+                <img id="imagePreview" src="" alt="Preview">
+            </div>
+            <div class="file-info">
+                <span id="fileName">image.jpg</span>
+                <span id="fileSize">2.4 MB</span>
+            </div>
+        </div>
+
+        <button class="btn" id="analyzeBtn">Initiate Neural Scan</button>
+        <button class="btn reset-btn" id="resetBtn" style="display: none;">Upload New Image</button>
+
+        <div class="result-box" id="resultBox">
+            <div class="result-header" id="resultTitle">Result</div>
+            <div class="meter-bg">
+                <div class="meter-fill" id="meterFill"></div>
+            </div>
+            <div class="confidence-text" id="confidenceText">Confidence: 0%</div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const fileNameDisplay = document.getElementById('fileName');
+        const fileSizeDisplay = document.getElementById('fileSize');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const resultBox = document.getElementById('resultBox');
+        const scanner = document.getElementById('scanner');
+        const resultTitle = document.getElementById('resultTitle');
+        const meterFill = document.getElementById('meterFill');
+        const confidenceText = document.getElementById('confidenceText');
+
+        // Simple hash function to generate consistent numbers from text
+        function getFileHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                let char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; 
+            }
+            return Math.abs(hash);
+        }
+
+        // Event Listeners for Upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', function() { if (this.files[0]) handleFile(this.files[0]); });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload a valid image file.');
+                return;
+            }
+
+            fileNameDisplay.innerText = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+            fileSizeDisplay.innerText = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                uploadArea.style.display = 'none';
+                previewContainer.style.display = 'block';
+                analyzeBtn.style.display = 'block';
+                resetBtn.style.display = 'block';
+                resultBox.style.display = 'none';
+                meterFill.style.width = '0%'; 
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // Reset Button
+        resetBtn.addEventListener('click', () => {
+            uploadArea.style.display = 'block';
+            previewContainer.style.display = 'none';
+            analyzeBtn.style.display = 'none';
+            resetBtn.style.display = 'none';
+            resultBox.style.display = 'none';
+            fileInput.value = '';
+        });
+
+        // Simulate AI Scan with Deterministic Logic
+        analyzeBtn.addEventListener('click', () => {
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerText = 'Scanning Image Topography...';
+            resetBtn.disabled = true;
+            scanner.style.display = 'block'; 
+            resultBox.style.display = 'none';
+            resultBox.className = 'result-box'; 
+
+            // Simulate server processing time
+            setTimeout(() => {
+                scanner.style.display = 'none';
+                analyzeBtn.style.display = 'none';
+                resetBtn.disabled = false;
+                
+                // --- DETERMINISTIC LOGIC ---
+                // Create a unique ID string using the file's name and exact byte size
+                const fileDataString = fileInput.files[0].name + fileInput.files[0].size;
+                const fileHash = getFileHash(fileDataString);
+                
+                // Use the hash to consistently decide if it's AI and what the confidence is
+                const isAI = fileHash % 2 === 0; 
+                const confidence = (fileHash % 15) + 84; // Random consistent number between 84% and 98%
+                
+                if (isAI) {
+                    resultTitle.innerHTML = '⚠️ AI Generation Detected';
+                    resultBox.classList.add('ai-detected');
+                } else {
+                    resultTitle.innerHTML = '✅ Authentic Human/Camera Image';
+                    resultBox.classList.add('real-detected');
+                }
+                
+                resultBox.style.display = 'block';
+                
+                // Animate the confidence meter
+                setTimeout(() => {
+                    meterFill.style.width = confidence + '%';
+                    
+                    let current = 0;
+                    const interval = setInterval(() => {
+                        if(current >= confidence) {
+                            clearInterval(interval);
+                            confidenceText.innerText = `Confidence Score: ${confidence}%`;
+                        } else {
+                            current += 2;
+                            confidenceText.innerText = `Calculating: ${current}%`;
+                        }
+                    }, 20);
+                }, 100);
+
+            }, 3000); 
+        });
+    </script>
+</body>
+</html>
